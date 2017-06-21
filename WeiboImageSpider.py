@@ -14,7 +14,7 @@ import uuid
 import time
 
 class WeiboImageSpider:
-    _cookie = {"Cookie": "_T_WM=c49032e6861cf848dcf56dfab45c9668; M_WEIBOCN_PARAMS=featurecode%3D20000180%26oid%3D4110344157372113%26luicode%3D20000061%26lfid%3D4110344157372113; SUB=_2A250Jw3dDeThGeNM4lUZ9ivIyTSIHXVX65OVrDV6PUJbkdBeLXX8kW2ZCDutsECFNPcYaPMKwSD8mgKvcQ..; SUHB=0U1Zmga_cBjBtz; SCF=ApDTCcjcEyoZE18BJi-WIVglDsbZ-C0Q-8lgFrpfLpb0raNLEn0dBQBvUKaioGz-9gm8eQU7R0mK7_bb4Tctwto.; SSOLoginState=1495498125"}
+    _cookie = {"Cookie" : "_T_WM=c49032e6861cf848dcf56dfab45c9668; SCF=ApDTCcjcEyoZE18BJi-WIVglDsbZ-C0Q-8lgFrpfLpb0rAz2W340C0xfpDTmOg7dHSotozqnTgVxFExoXMu4-aI.; SUB=_2A250TYDGDeThGeNM4lUZ9ivIyTSIHXVXsSCOrDV6PUJbkdBeLUbgkW0xX_eAf3HrON2fc0zH6BWEjeXXWw..; SUHB=0C1SR0Sy0h_WHO; SSOLoginState=1498017942"}
     pageNum = 0
     _id = 0
     _image_count = 0
@@ -22,21 +22,21 @@ class WeiboImageSpider:
     _trunk_size = 50
     _lock = threading.Lock()
 
-    def __init__(self, id):
-        self._id = id
-        url = 'http://weibo.cn/u/%d?filter=1&page=1'%id
+    def __init__(self, uid):
+        self._id = uid
+        url = 'http://weibo.cn/u/{}?filter=1&page=1'.format(uid)
         html = requests.get(url, cookies = self._cookie).content
         selector = etree.HTML(html)
         self.pageNum = (int)(selector.xpath('//input[@name="mp"]')[0].attrib['value'])
         print "There are {} pages in total".format(self.pageNum)
 
-    def getWeiboImageFactory(self, start, end):
-        if not start:
-            start = 0
-        if not end:
+    def getWeiboImageFactory(self, start=0, end=0):
+        if end == 0:
             end = self.pageNum
 
-        for i in range((self.pageNum-1) / 50):
+        for i in range((end-1) / 50 + 1):
+            start = i*50
+            end = (i+1)*50 if self.pageNum > (i+1)*50 else self.pageNum
             threads = []
             while (start < end):
                 t = threading.Thread(target=self._getWeiboImageWithPageRange, args=(start,))
@@ -45,8 +45,8 @@ class WeiboImageSpider:
 
                 start += self._offset
                 
-                for t in threads:
-                    t.join()
+            for t in threads:
+                t.join()
 
             time.sleep(20)
 
@@ -56,7 +56,7 @@ class WeiboImageSpider:
 
         # Get image urls
         for page in range(start+1, start+self._offset-1):
-            url = 'http://weibo.cn/u/%d?filter=1&page=%d'%(self._id,page)
+            url = 'http://weibo.cn/u/{}?filter=1&page={}'.format(self._id, page)
             print url
             lxml = requests.get(url, cookies = self._cookie).content
             time.sleep(3)
@@ -66,11 +66,12 @@ class WeiboImageSpider:
             for imgurl in urllist:
                 urllist_set.add(requests.get(imgurl['href'], cookies = self._cookie).url)
 
-        link = ""
-        fo = open("/Users/Vito/Documents/picCatcher/%s_imageurls%d"%(self._id, start), "wb")
-        for eachlink in urllist_set:
-            link = link + eachlink +"\n"
-        fo.write(link)
+        #link = ""
+        #fo = open("/Users/Vito/Documents/picCatcher/{}_imageurls{}".format(self._id, start), "wb")
+        #for eachlink in urllist_set:
+        #    link = link + eachlink +"\n"
+        #fo.write(link)
+        #fo.close()
 
         # Download images and save them
         if not urllist_set:
